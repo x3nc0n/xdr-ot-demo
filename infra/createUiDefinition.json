@@ -1,0 +1,96 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/0.1.2-preview/CreateUIDefinition.MultiVm.json#",
+  "handler": "Microsoft.Azure.CreateUIDef",
+  "version": "0.1.2-preview",
+  "parameters": {
+    "config": {
+      "isWizard": true,
+      "basics": {
+        "resourceGroup": { "allowExisting": true },
+        "location": { "visible": true }
+      }
+    },
+    "basics": [],
+    "steps": [
+      {
+        "name": "lab",
+        "label": "Private OT lab",
+        "elements": [
+          {
+            "name": "warning",
+            "type": "Microsoft.Common.InfoBox",
+            "visible": true,
+            "options": {
+              "icon": "Warning",
+              "text": "Synthetic lab only. Firewall, Bastion, six VMs and Sentinel incur ongoing charges. Validate region/SKU availability and licensing. No tenant onboarding or response-policy changes are performed by this template."
+            }
+          },
+          {
+            "name": "prefix",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Resource prefix",
+            "defaultValue": "otlab",
+            "constraints": {
+              "required": true,
+              "regex": "^[a-z][a-z0-9]{1,7}$",
+              "validationMessage": "Use 2–8 lowercase letters or digits, starting with a letter."
+            }
+          },
+          {
+            "name": "adminUsername",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Local administrator",
+            "defaultValue": "labadmin",
+            "constraints": { "required": true }
+          },
+          {
+            "name": "adminPassword",
+            "type": "Microsoft.Common.PasswordBox",
+            "label": {
+              "password": "Windows administrator password",
+              "confirmPassword": "Confirm password"
+            },
+            "options": { "hideConfirmation": false },
+            "constraints": {
+              "required": true,
+              "regex": "^(?=.{12,123}$)(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^a-zA-Z0-9]).*$",
+              "validationMessage": "Use 12–123 characters including uppercase, lowercase, a digit and a symbol."
+            }
+          },
+          {
+            "name": "linuxSshPublicKey",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Linux SSH public key (never a private key)",
+            "constraints": {
+              "required": true,
+              "regex": "^(ssh-rsa|ssh-ed25519)\\s+\\S+.*$",
+              "validationMessage": "Paste an RSA or Ed25519 OpenSSH public key."
+            }
+          },
+          {
+            "name": "licenseConfirmation",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Windows 11 licensing and cost acknowledgement",
+            "defaultValue": "",
+            "constraints": {
+              "required": true,
+              "allowedValues": [
+                {
+                  "label": "I have valid Windows 11 Azure virtualization rights and approve ongoing lab charges.",
+                  "value": "confirmed"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "outputs": {
+      "location": "[location()]",
+      "prefix": "[steps('lab').prefix]",
+      "adminUsername": "[steps('lab').adminUsername]",
+      "adminPassword": "[steps('lab').adminPassword]",
+      "linuxSshPublicKey": "[steps('lab').linuxSshPublicKey]"
+    }
+  }
+}

@@ -1,0 +1,13 @@
+# Squad: union merge for append-only team state files
+# Keep guest scripts and generated policy portable across Windows and Linux.
+*.sh text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+*.ps1 text eol=lf
+.squad/decisions.md merge=union
+.squad/agents/*/history.md merge=union
+.squad/log/** merge=union
+.squad/orchestration-log/** merge=union
+.squad/rai/audit-trail.md merge=union
+.squad/fact-checker/audit-trail.md merge=union

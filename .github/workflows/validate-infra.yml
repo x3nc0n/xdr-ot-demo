@@ -1,0 +1,36 @@
+name: Validate deployable lab
+on:
+  push:
+    paths: ['infra/**', 'scripts/**', 'config/**', 'proxy/**', 'tests/**', '.github/workflows/validate-infra.yml']
+  pull_request:
+    paths: ['infra/**', 'scripts/**', 'config/**', 'proxy/**', 'tests/**', '.github/workflows/validate-infra.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select reproducible Bicep compiler
+        run: az bicep install --version v0.46.1
+      - name: Compile policies and templates
+        shell: pwsh
+        run: ./scripts/Build-Templates.ps1
+      - name: Verify generated artifacts are current
+        run: git diff --exit-code -- config/egress.json infra/azuredeploy.json infra/arc-monitoring.json
+      - name: Install test dependencies
+        shell: pwsh
+        run: |
+          Install-Module Pester -RequiredVersion 5.7.1 -Force -Scope CurrentUser
+          Install-Module PSScriptAnalyzer -RequiredVersion 1.24.0 -Force -Scope CurrentUser
+      - name: Test scripts and policy
+        shell: pwsh
+        run: |
+          Invoke-Pester -Path ./tests -CI
+          $issues = @(Invoke-ScriptAnalyzer -Path ./scripts -Recurse -Severity Warning,Error)
+          $issues | Format-Table -AutoSize
+          if ($issues.Count) { throw 'Script analysis failed' }
+      - name: Check shell syntax
+        run: |
+          find scripts workloads -type f -name '*.sh' -print0 | xargs -0 -r -n1 bash -n

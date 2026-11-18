@@ -1,0 +1,22 @@
+# Squad: ignore runtime state (logs, inbox, sessions)
+# Note: .squad/casting/* is identity and MUST be committed to main, not ignored
+.squad/orchestration-log/
+.squad/log/
+.squad/decisions/inbox/
+.squad/sessions/
+.squad/.scratch/
+.squad/.cache/
+# Local deployment inputs, PKI and sanitized operator evidence
+private*.json
+!infra/parameters/private.parameters.example.json
+testResults.xml
+*.pfx
+*.p12
+*.key
+*.pem
+*.crl
+*.cer
+evidence/
+.local/
+# Squad: SubSquad activation file (local to this machine)
+.squad-workstream

@@ -1,0 +1,6 @@
+// Firewall diagnostics use resource-specific tables.
+union isfuzzy=true
+    (AZFWApplicationRule | where Action == "Deny"),
+    (AZFWNetworkRule | where Action == "Deny")
+| where TimeGenerated > ago(1h)
+| order by TimeGenerated desc

@@ -1,0 +1,10 @@
+// Set the time window and source names to match your deployment.
+let since = ago(1h);
+union isfuzzy=true
+    (WindowsEvent | where TimeGenerated > since
+        | project TimeGenerated, Computer, SourceTable="WindowsEvent", Detail=tostring(EventData)),
+    (SecurityEvent | where TimeGenerated > since
+        | project TimeGenerated, Computer, SourceTable="SecurityEvent", Detail=tostring(Activity)),
+    (Syslog | where TimeGenerated > since and Facility == "local0"
+        | project TimeGenerated, Computer, SourceTable="Syslog", Detail=SyslogMessage)
+| order by TimeGenerated desc

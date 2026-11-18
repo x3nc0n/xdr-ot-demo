@@ -1,0 +1,1817 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.46.1.21595",
+      "templateHash": "3139360103717398110"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Azure region; verify Firewall Basic, Bastion Basic and VM image/SKU availability before deployment."
+      }
+    },
+    "prefix": {
+      "type": "string",
+      "defaultValue": "otlab",
+      "minLength": 2,
+      "maxLength": 8
+    },
+    "adminUsername": {
+      "type": "string",
+      "defaultValue": "labadmin"
+    },
+    "adminPassword": {
+      "type": "securestring",
+      "minLength": 12,
+      "maxLength": 123,
+      "metadata": {
+        "description": "Windows local administrator password. Supply interactively or by Key Vault reference; never commit it."
+      }
+    },
+    "linuxSshPublicKey": {
+      "type": "string",
+      "metadata": {
+        "description": "OpenSSH public key for both Ubuntu VMs. Never supply a private key."
+      }
+    },
+    "windowsVmSize": {
+      "type": "string",
+      "defaultValue": "Standard_D2s_v5"
+    },
+    "linuxVmSize": {
+      "type": "string",
+      "defaultValue": "Standard_B2s"
+    },
+    "windowsServerImageVersion": {
+      "type": "string",
+      "defaultValue": "latest"
+    },
+    "windows11ImageVersion": {
+      "type": "string",
+      "defaultValue": "latest"
+    },
+    "ubuntuImageVersion": {
+      "type": "string",
+      "defaultValue": "latest"
+    },
+    "privateDnsZoneName": {
+      "type": "string",
+      "defaultValue": "ot.demo.test"
+    },
+    "tags": {
+      "type": "object",
+      "defaultValue": {
+        "workload": "synthetic-ot-lab",
+        "owner": "x3nc0n"
+      }
+    },
+    "addressPlan": {
+      "type": "object",
+      "defaultValue": {
+        "hub": "10.10.0.0/16",
+        "firewall": "10.10.0.0/26",
+        "firewallManagement": "10.10.0.64/26",
+        "bastion": "10.10.1.0/26",
+        "management": "10.10.2.0/24",
+        "plant": "10.20.0.0/16",
+        "l2": "10.20.2.0/24",
+        "l3Windows": "10.20.3.0/24",
+        "l3Linux": "10.20.4.0/24",
+        "wec": "10.20.5.0/24",
+        "dmz": "10.30.0.0/16",
+        "proxy": "10.30.1.0/24"
+      },
+      "metadata": {
+        "description": "Nonoverlapping private CIDRs. Each VM uses host offset 4 in its subnet."
+      }
+    },
+    "retentionInDays": {
+      "type": "int",
+      "defaultValue": 30,
+      "minValue": 30,
+      "maxValue": 730
+    },
+    "dailyQuotaGb": {
+      "type": "int",
+      "defaultValue": 1,
+      "minValue": 1,
+      "metadata": {
+        "description": "Daily workspace cap in GB; a cap may interrupt collection and is not a spending guarantee."
+      }
+    },
+    "budgetEmails": {
+      "type": "array",
+      "defaultValue": [],
+      "metadata": {
+        "description": "Optional subscription budget contacts; leave empty to avoid creating a budget."
+      }
+    },
+    "monthlyBudgetAmount": {
+      "type": "int",
+      "defaultValue": 250
+    }
+  },
+  "variables": {
+    "names": {
+      "management": "[format('{0}-mgmt', parameters('prefix'))]",
+      "l2": "[format('{0}-w11', parameters('prefix'))]",
+      "l3Windows": "[format('{0}-win', parameters('prefix'))]",
+      "l3Linux": "[format('{0}-linux', parameters('prefix'))]",
+      "wec": "[format('{0}-wec', parameters('prefix'))]",
+      "proxy": "[format('{0}-proxy', parameters('prefix'))]"
+    },
+    "ips": {
+      "management": "[cidrHost(parameters('addressPlan').management, 4)]",
+      "l2": "[cidrHost(parameters('addressPlan').l2, 4)]",
+      "l3Windows": "[cidrHost(parameters('addressPlan').l3Windows, 4)]",
+      "l3Linux": "[cidrHost(parameters('addressPlan').l3Linux, 4)]",
+      "wec": "[cidrHost(parameters('addressPlan').wec, 4)]",
+      "proxy": "[cidrHost(parameters('addressPlan').proxy, 4)]"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('{0}-monitoring', parameters('prefix'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "prefix": {
+            "value": "[parameters('prefix')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[parameters('tags')]"
+          },
+          "retentionInDays": {
+            "value": "[parameters('retentionInDays')]"
+          },
+          "dailyQuotaGb": {
+            "value": "[parameters('dailyQuotaGb')]"
+          },
+          "budgetEmails": {
+            "value": "[parameters('budgetEmails')]"
+          },
+          "monthlyBudgetAmount": {
+            "value": "[parameters('monthlyBudgetAmount')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.46.1.21595",
+              "templateHash": "12462388753803133668"
+            }
+          },
+          "parameters": {
+            "prefix": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object"
+            },
+            "retentionInDays": {
+              "type": "int"
+            },
+            "dailyQuotaGb": {
+              "type": "int"
+            },
+            "budgetEmails": {
+              "type": "array"
+            },
+            "monthlyBudgetAmount": {
+              "type": "int"
+            },
+            "budgetStartDate": {
+              "type": "string",
+              "defaultValue": "[utcNow('yyyy-MM-01')]"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/workspaces",
+              "apiVersion": "2023-09-01",
+              "name": "[format('{0}-law-{1}', parameters('prefix'), uniqueString(resourceGroup().id))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "sku": {
+                  "name": "PerGB2018"
+                },
+                "retentionInDays": "[parameters('retentionInDays')]",
+                "workspaceCapping": {
+                  "dailyQuotaGb": "[parameters('dailyQuotaGb')]"
+                },
+                "publicNetworkAccessForIngestion": "Enabled",
+                "publicNetworkAccessForQuery": "Enabled",
+                "features": {
+                  "enableLogAccessUsingOnlyResourcePermissions": true
+                }
+              }
+            },
+            {
+              "type": "Microsoft.SecurityInsights/onboardingStates",
+              "apiVersion": "2024-03-01",
+              "scope": "[resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-law-{1}', parameters('prefix'), uniqueString(resourceGroup().id)))]",
+              "name": "default",
+              "properties": {
+                "customerManagedKey": false
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-law-{1}', parameters('prefix'), uniqueString(resourceGroup().id)))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Insights/dataCollectionRules",
+              "apiVersion": "2023-03-11",
+              "name": "[format('{0}-dcr-local-security', parameters('prefix'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "kind": "Windows",
+              "properties": {
+                "description": "Selected local Windows Security events -> SecurityEvent; associate only with the sensitive Windows Arc machine.",
+                "dataSources": {
+                  "windowsEventLogs": [
+                    {
+                      "name": "localSecurity",
+                      "streams": [
+                        "Microsoft-SecurityEvent"
+                      ],
+                      "xPathQueries": [
+                        "Security!*[System[(EventID=4624 or EventID=4625 or EventID=4688 or EventID=1102)]]"
+                      ]
+                    }
+                  ]
+                },
+                "destinations": {
+                  "logAnalytics": [
+                    {
+                      "name": "workspace",
+                      "workspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-law-{1}', parameters('prefix'), uniqueString(resourceGroup().id)))]"
+                    }
+                  ]
+                },
+                "dataFlows": [
+                  {
+                    "streams": [
+                      "Microsoft-SecurityEvent"
+                    ],
+                    "destinations": [
+                      "workspace"
+                    ]
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-law-{1}', parameters('prefix'), uniqueString(resourceGroup().id)))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Insights/dataCollectionRules",
+              "apiVersion": "2023-03-11",
+              "name": "[format('{0}-dcr-wef', parameters('prefix'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "kind": "Windows",
+              "properties": {
+                "description": "WEC forwarded events -> WindowsEvent, not SecurityEvent. Event selection is constrained by the source subscription.",
+                "dataSources": {
+                  "windowsEventLogs": [
+                    {
+                      "name": "forwardedEvents",
+                      "streams": [
+                        "Microsoft-WindowsEvent"
+                      ],
+                      "xPathQueries": [
+                        "ForwardedEvents!*"
+                      ]
+                    }
+                  ]
+                },
+                "destinations": {
+                  "logAnalytics": [
+                    {
+                      "name": "workspace",
+                      "workspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-law-{1}', parameters('prefix'), uniqueString(resourceGroup().id)))]"
+                    }
+                  ]
+                },
+                "dataFlows": [
+                  {
+                    "streams": [
+                      "Microsoft-WindowsEvent"
+                    ],
+                    "destinations": [
+                      "workspace"
+                    ]
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-law-{1}', parameters('prefix'), uniqueString(resourceGroup().id)))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Insights/dataCollectionRules",
+              "apiVersion": "2023-03-11",
+              "name": "[format('{0}-dcr-syslog', parameters('prefix'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "kind": "Linux",
+              "properties": {
+                "description": "Synthetic local0 application events only -> Syslog.",
+                "dataSources": {
+                  "syslog": [
+                    {
+                      "name": "syntheticSyslog",
+                      "streams": [
+                        "Microsoft-Syslog"
+                      ],
+                      "facilityNames": [
+                        "local0"
+                      ],
+                      "logLevels": [
+                        "Debug",
+                        "Info",
+                        "Notice",
+                        "Warning",
+                        "Error",
+                        "Critical",
+                        "Alert",
+                        "Emergency"
+                      ]
+                    }
+                  ]
+                },
+                "destinations": {
+                  "logAnalytics": [
+                    {
+                      "name": "workspace",
+                      "workspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-law-{1}', parameters('prefix'), uniqueString(resourceGroup().id)))]"
+                    }
+                  ]
+                },
+                "dataFlows": [
+                  {
+                    "streams": [
+                      "Microsoft-Syslog"
+                    ],
+                    "destinations": [
+                      "workspace"
+                    ]
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-law-{1}', parameters('prefix'), uniqueString(resourceGroup().id)))]"
+              ]
+            },
+            {
+              "condition": "[not(empty(parameters('budgetEmails')))]",
+              "type": "Microsoft.Consumption/budgets",
+              "apiVersion": "2023-11-01",
+              "name": "[format('{0}-monthly-budget', parameters('prefix'))]",
+              "properties": {
+                "category": "Cost",
+                "amount": "[parameters('monthlyBudgetAmount')]",
+                "timeGrain": "Monthly",
+                "timePeriod": {
+                  "startDate": "[parameters('budgetStartDate')]"
+                },
+                "notifications": {
+                  "actual80Percent": {
+                    "enabled": true,
+                    "operator": "GreaterThanOrEqualTo",
+                    "threshold": 80,
+                    "thresholdType": "Actual",
+                    "contactEmails": "[parameters('budgetEmails')]"
+                  }
+                }
+              }
+            }
+          ],
+          "outputs": {
+            "workspaceResourceId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-law-{1}', parameters('prefix'), uniqueString(resourceGroup().id)))]"
+            },
+            "workspaceName": {
+              "type": "string",
+              "value": "[format('{0}-law-{1}', parameters('prefix'), uniqueString(resourceGroup().id))]"
+            },
+            "workspaceCustomerId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-law-{1}', parameters('prefix'), uniqueString(resourceGroup().id))), '2023-09-01').customerId]"
+            },
+            "dcrIds": {
+              "type": "object",
+              "value": {
+                "localSecurity": "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-dcr-local-security', parameters('prefix')))]",
+                "wef": "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-dcr-wef', parameters('prefix')))]",
+                "syslog": "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-dcr-syslog', parameters('prefix')))]"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('{0}-network', parameters('prefix'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "prefix": {
+            "value": "[parameters('prefix')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[parameters('tags')]"
+          },
+          "addressPlan": {
+            "value": "[parameters('addressPlan')]"
+          },
+          "ips": {
+            "value": "[variables('ips')]"
+          },
+          "privateDnsZoneName": {
+            "value": "[parameters('privateDnsZoneName')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.46.1.21595",
+              "templateHash": "15587272116991970658"
+            }
+          },
+          "parameters": {
+            "prefix": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object"
+            },
+            "addressPlan": {
+              "type": "object"
+            },
+            "ips": {
+              "type": "object"
+            },
+            "privateDnsZoneName": {
+              "type": "string"
+            }
+          },
+          "variables": {
+            "copy": [
+              {
+                "name": "proxyClients",
+                "count": "[length(createArray('management', 'l2', 'l3Windows', 'l3Linux', 'wec'))]",
+                "input": "[format('{0}/32', parameters('ips')[createArray('management', 'l2', 'l3Windows', 'l3Linux', 'wec')[copyIndex('proxyClients')]])]"
+              },
+              {
+                "name": "managedGuests",
+                "count": "[length(createArray('l2', 'l3Windows', 'l3Linux', 'wec', 'proxy'))]",
+                "input": "[format('{0}/32', parameters('ips')[createArray('l2', 'l3Windows', 'l3Linux', 'wec', 'proxy')[copyIndex('managedGuests')]])]"
+              }
+            ],
+            "workloadKeys": [
+              "management",
+              "l2",
+              "l3Windows",
+              "l3Linux",
+              "wec",
+              "proxy"
+            ],
+            "plantKeys": [
+              "l2",
+              "l3Windows",
+              "l3Linux",
+              "wec"
+            ],
+            "spokeNames": [
+              "[format('{0}-plant', parameters('prefix'))]",
+              "[format('{0}-dmz', parameters('prefix'))]"
+            ]
+          },
+          "resources": [
+            {
+              "copy": {
+                "name": "routeTables",
+                "count": "[length(variables('workloadKeys'))]"
+              },
+              "type": "Microsoft.Network/routeTables",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}-rt-{1}', parameters('prefix'), variables('workloadKeys')[copyIndex()])]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "disableBgpRoutePropagation": true
+              }
+            },
+            {
+              "copy": {
+                "name": "nsgs",
+                "count": "[length(variables('workloadKeys'))]"
+              },
+              "type": "Microsoft.Network/networkSecurityGroups",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}-nsg-{1}', parameters('prefix'), variables('workloadKeys')[copyIndex()])]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "securityRules": "[concat(createArray(createObject('name', 'Allow-Azure-DNS', 'properties', createObject('priority', 100, 'direction', 'Outbound', 'access', 'Allow', 'protocol', '*', 'sourceAddressPrefix', '*', 'sourcePortRange', '*', 'destinationAddressPrefix', 'AzurePlatformDNS', 'destinationPortRange', '53')), createObject('name', 'Allow-Azure-wire-server', 'properties', createObject('priority', 110, 'direction', 'Outbound', 'access', 'Allow', 'protocol', 'Tcp', 'sourceAddressPrefix', '*', 'sourcePortRange', '*', 'destinationAddressPrefix', '168.63.129.16', 'destinationPortRanges', createArray('80', '32526'))), createObject('name', 'Allow-private-management', 'properties', createObject('priority', 120, 'direction', 'Inbound', 'access', 'Allow', 'protocol', 'Tcp', 'sourceAddressPrefix', if(equals(variables('workloadKeys')[copyIndex()], 'management'), parameters('addressPlan').bastion, format('{0}/32', parameters('ips').management)), 'sourcePortRange', '*', 'destinationAddressPrefix', '*', 'destinationPortRanges', if(contains(createArray('proxy', 'l3Linux'), variables('workloadKeys')[copyIndex()]), createArray('22'), createArray('3389')))), createObject('name', 'Deny-other-inbound', 'properties', createObject('priority', 4000, 'direction', 'Inbound', 'access', 'Deny', 'protocol', '*', 'sourceAddressPrefix', '*', 'sourcePortRange', '*', 'destinationAddressPrefix', '*', 'destinationPortRange', '*')), createObject('name', 'Deny-other-outbound', 'properties', createObject('priority', 4000, 'direction', 'Outbound', 'access', 'Deny', 'protocol', '*', 'sourceAddressPrefix', '*', 'sourcePortRange', '*', 'destinationAddressPrefix', '*', 'destinationPortRange', '*'))), if(not(equals(variables('workloadKeys')[copyIndex()], 'proxy')), createArray(createObject('name', 'Allow-private-proxy', 'properties', createObject('priority', 130, 'direction', 'Outbound', 'access', 'Allow', 'protocol', 'Tcp', 'sourceAddressPrefix', '*', 'sourcePortRange', '*', 'destinationAddressPrefix', format('{0}/32', parameters('ips').proxy), 'destinationPortRange', '3128'))), createArray(createObject('name', 'Allow-approved-proxy-clients', 'properties', createObject('priority', 130, 'direction', 'Inbound', 'access', 'Allow', 'protocol', 'Tcp', 'sourceAddressPrefixes', variables('proxyClients'), 'sourcePortRange', '*', 'destinationAddressPrefix', format('{0}/32', parameters('ips').proxy), 'destinationPortRange', '3128')), createObject('name', 'Allow-HTTP-HTTPS-via-firewall', 'properties', createObject('priority', 140, 'direction', 'Outbound', 'access', 'Allow', 'protocol', 'Tcp', 'sourceAddressPrefix', '*', 'sourcePortRange', '*', 'destinationAddressPrefix', 'Internet', 'destinationPortRanges', createArray('80', '443'))))), if(equals(variables('workloadKeys')[copyIndex()], 'management'), createArray(createObject('name', 'Allow-management-to-guests', 'properties', createObject('priority', 150, 'direction', 'Outbound', 'access', 'Allow', 'protocol', 'Tcp', 'sourceAddressPrefix', format('{0}/32', parameters('ips').management), 'sourcePortRange', '*', 'destinationAddressPrefixes', variables('managedGuests'), 'destinationPortRanges', createArray('3389', '22')))), createArray()), if(equals(variables('workloadKeys')[copyIndex()], 'wec'), createArray(createObject('name', 'Allow-WEF-from-L2', 'properties', createObject('priority', 160, 'direction', 'Inbound', 'access', 'Allow', 'protocol', 'Tcp', 'sourceAddressPrefix', format('{0}/32', parameters('ips').l2), 'sourcePortRange', '*', 'destinationAddressPrefix', format('{0}/32', parameters('ips').wec), 'destinationPortRange', '5986')), createObject('name', 'Allow-private-CRL', 'properties', createObject('priority', 170, 'direction', 'Inbound', 'access', 'Allow', 'protocol', 'Tcp', 'sourceAddressPrefixes', createArray(format('{0}/32', parameters('ips').l2), format('{0}/32', parameters('ips').l3Windows), format('{0}/32', parameters('ips').management)), 'sourcePortRange', '*', 'destinationAddressPrefix', format('{0}/32', parameters('ips').wec), 'destinationPortRange', '80'))), createArray()), if(contains(createArray('management', 'l2', 'l3Windows'), variables('workloadKeys')[copyIndex()]), createArray(createObject('name', 'Allow-WEC-certificate-revocation', 'properties', createObject('priority', 180, 'direction', 'Outbound', 'access', 'Allow', 'protocol', 'Tcp', 'sourceAddressPrefix', '*', 'sourcePortRange', '*', 'destinationAddressPrefix', format('{0}/32', parameters('ips').wec), 'destinationPortRange', '80'))), createArray()), if(equals(variables('workloadKeys')[copyIndex()], 'l2'), createArray(createObject('name', 'Allow-WEF-to-WEC', 'properties', createObject('priority', 190, 'direction', 'Outbound', 'access', 'Allow', 'protocol', 'Tcp', 'sourceAddressPrefix', format('{0}/32', parameters('ips').l2), 'sourcePortRange', '*', 'destinationAddressPrefix', format('{0}/32', parameters('ips').wec), 'destinationPortRange', '5986'))), createArray()))]"
+              }
+            },
+            {
+              "type": "Microsoft.Network/virtualNetworks",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}-hub', parameters('prefix'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "addressSpace": {
+                  "addressPrefixes": [
+                    "[parameters('addressPlan').hub]"
+                  ]
+                },
+                "subnets": [
+                  {
+                    "name": "AzureFirewallSubnet",
+                    "properties": {
+                      "addressPrefix": "[parameters('addressPlan').firewall]"
+                    }
+                  },
+                  {
+                    "name": "AzureFirewallManagementSubnet",
+                    "properties": {
+                      "addressPrefix": "[parameters('addressPlan').firewallManagement]"
+                    }
+                  },
+                  {
+                    "name": "AzureBastionSubnet",
+                    "properties": {
+                      "addressPrefix": "[parameters('addressPlan').bastion]"
+                    }
+                  },
+                  {
+                    "name": "management",
+                    "properties": {
+                      "addressPrefix": "[parameters('addressPlan').management]",
+                      "defaultOutboundAccess": false,
+                      "networkSecurityGroup": {
+                        "id": "[resourceId('Microsoft.Network/networkSecurityGroups', format('{0}-nsg-{1}', parameters('prefix'), variables('workloadKeys')[0]))]"
+                      },
+                      "routeTable": {
+                        "id": "[resourceId('Microsoft.Network/routeTables', format('{0}-rt-{1}', parameters('prefix'), variables('workloadKeys')[0]))]"
+                      }
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkSecurityGroups', format('{0}-nsg-{1}', parameters('prefix'), variables('workloadKeys')[0]))]",
+                "[resourceId('Microsoft.Network/routeTables', format('{0}-rt-{1}', parameters('prefix'), variables('workloadKeys')[0]))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/virtualNetworks",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}-plant', parameters('prefix'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "copy": [
+                  {
+                    "name": "subnets",
+                    "count": "[length(variables('plantKeys'))]",
+                    "input": {
+                      "name": "[variables('plantKeys')[copyIndex('subnets')]]",
+                      "properties": {
+                        "addressPrefix": "[parameters('addressPlan')[variables('plantKeys')[copyIndex('subnets')]]]",
+                        "defaultOutboundAccess": false,
+                        "networkSecurityGroup": {
+                          "id": "[resourceId('Microsoft.Network/networkSecurityGroups', format('{0}-nsg-{1}', parameters('prefix'), variables('workloadKeys')[add(copyIndex('subnets'), 1)]))]"
+                        },
+                        "routeTable": {
+                          "id": "[resourceId('Microsoft.Network/routeTables', format('{0}-rt-{1}', parameters('prefix'), variables('workloadKeys')[add(copyIndex('subnets'), 1)]))]"
+                        }
+                      }
+                    }
+                  }
+                ],
+                "addressSpace": {
+                  "addressPrefixes": [
+                    "[parameters('addressPlan').plant]"
+                  ]
+                }
+              },
+              "dependsOn": [
+                "nsgs",
+                "routeTables"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/virtualNetworks",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}-dmz', parameters('prefix'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "addressSpace": {
+                  "addressPrefixes": [
+                    "[parameters('addressPlan').dmz]"
+                  ]
+                },
+                "subnets": [
+                  {
+                    "name": "proxy",
+                    "properties": {
+                      "addressPrefix": "[parameters('addressPlan').proxy]",
+                      "defaultOutboundAccess": false,
+                      "networkSecurityGroup": {
+                        "id": "[resourceId('Microsoft.Network/networkSecurityGroups', format('{0}-nsg-{1}', parameters('prefix'), variables('workloadKeys')[5]))]"
+                      },
+                      "routeTable": {
+                        "id": "[resourceId('Microsoft.Network/routeTables', format('{0}-rt-{1}', parameters('prefix'), variables('workloadKeys')[5]))]"
+                      }
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkSecurityGroups', format('{0}-nsg-{1}', parameters('prefix'), variables('workloadKeys')[5]))]",
+                "[resourceId('Microsoft.Network/routeTables', format('{0}-rt-{1}', parameters('prefix'), variables('workloadKeys')[5]))]"
+              ]
+            },
+            {
+              "copy": {
+                "name": "hubPeerings",
+                "count": "[length(variables('spokeNames'))]"
+              },
+              "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}/{1}', format('{0}-hub', parameters('prefix')), format('to-{0}', variables('spokeNames')[copyIndex()]))]",
+              "properties": {
+                "allowVirtualNetworkAccess": true,
+                "allowForwardedTraffic": true,
+                "allowGatewayTransit": false,
+                "useRemoteGateways": false,
+                "remoteVirtualNetwork": {
+                  "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('spokeNames')[copyIndex()])]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', format('{0}-dmz', parameters('prefix')))]",
+                "[resourceId('Microsoft.Network/virtualNetworks', format('{0}-hub', parameters('prefix')))]",
+                "[resourceId('Microsoft.Network/virtualNetworks', format('{0}-plant', parameters('prefix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}/{1}', format('{0}-plant', parameters('prefix')), 'to-hub')]",
+              "properties": {
+                "allowVirtualNetworkAccess": true,
+                "allowForwardedTraffic": true,
+                "allowGatewayTransit": false,
+                "useRemoteGateways": false,
+                "remoteVirtualNetwork": {
+                  "id": "[resourceId('Microsoft.Network/virtualNetworks', format('{0}-hub', parameters('prefix')))]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', format('{0}-hub', parameters('prefix')))]",
+                "[resourceId('Microsoft.Network/virtualNetworks', format('{0}-plant', parameters('prefix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}/{1}', format('{0}-dmz', parameters('prefix')), 'to-hub')]",
+              "properties": {
+                "allowVirtualNetworkAccess": true,
+                "allowForwardedTraffic": true,
+                "allowGatewayTransit": false,
+                "useRemoteGateways": false,
+                "remoteVirtualNetwork": {
+                  "id": "[resourceId('Microsoft.Network/virtualNetworks', format('{0}-hub', parameters('prefix')))]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', format('{0}-dmz', parameters('prefix')))]",
+                "[resourceId('Microsoft.Network/virtualNetworks', format('{0}-hub', parameters('prefix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/publicIPAddresses",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}-bastion-pip', parameters('prefix'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "Standard"
+              },
+              "properties": {
+                "publicIPAllocationMethod": "Static"
+              }
+            },
+            {
+              "type": "Microsoft.Network/bastionHosts",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}-bastion', parameters('prefix'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "Basic"
+              },
+              "properties": {
+                "ipConfigurations": [
+                  {
+                    "name": "bastion",
+                    "properties": {
+                      "subnet": {
+                        "id": "[format('{0}/subnets/AzureBastionSubnet', resourceId('Microsoft.Network/virtualNetworks', format('{0}-hub', parameters('prefix'))))]"
+                      },
+                      "publicIPAddress": {
+                        "id": "[resourceId('Microsoft.Network/publicIPAddresses', format('{0}-bastion-pip', parameters('prefix')))]"
+                      }
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', format('{0}-bastion-pip', parameters('prefix')))]",
+                "[resourceId('Microsoft.Network/virtualNetworks', format('{0}-hub', parameters('prefix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones",
+              "apiVersion": "2024-06-01",
+              "name": "[parameters('privateDnsZoneName')]",
+              "location": "global",
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "copy": {
+                "name": "dnsLinks",
+                "count": "[length(createArray(format('{0}-hub', parameters('prefix')), format('{0}-plant', parameters('prefix')), format('{0}-dmz', parameters('prefix'))))]"
+              },
+              "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+              "apiVersion": "2024-06-01",
+              "name": "[format('{0}/{1}', parameters('privateDnsZoneName'), createArray(format('{0}-hub', parameters('prefix')), format('{0}-plant', parameters('prefix')), format('{0}-dmz', parameters('prefix')))[copyIndex()])]",
+              "location": "global",
+              "properties": {
+                "registrationEnabled": false,
+                "virtualNetwork": {
+                  "id": "[resourceId('Microsoft.Network/virtualNetworks', createArray(format('{0}-hub', parameters('prefix')), format('{0}-plant', parameters('prefix')), format('{0}-dmz', parameters('prefix')))[copyIndex()])]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', format('{0}-dmz', parameters('prefix')))]",
+                "[resourceId('Microsoft.Network/privateDnsZones', parameters('privateDnsZoneName'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks', format('{0}-hub', parameters('prefix')))]",
+                "[resourceId('Microsoft.Network/virtualNetworks', format('{0}-plant', parameters('prefix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones/A",
+              "apiVersion": "2024-06-01",
+              "name": "[format('{0}/{1}', parameters('privateDnsZoneName'), 'wec')]",
+              "properties": {
+                "ttl": 300,
+                "aRecords": [
+                  {
+                    "ipv4Address": "[parameters('ips').wec]"
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', parameters('privateDnsZoneName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "routeTableNames": {
+              "type": "array",
+              "copy": {
+                "count": "[length(variables('workloadKeys'))]",
+                "input": "[format('{0}-rt-{1}', parameters('prefix'), variables('workloadKeys')[copyIndex()])]"
+              }
+            },
+            "subnetIds": {
+              "type": "object",
+              "value": {
+                "firewall": "[format('{0}/subnets/AzureFirewallSubnet', resourceId('Microsoft.Network/virtualNetworks', format('{0}-hub', parameters('prefix'))))]",
+                "firewallManagement": "[format('{0}/subnets/AzureFirewallManagementSubnet', resourceId('Microsoft.Network/virtualNetworks', format('{0}-hub', parameters('prefix'))))]",
+                "management": "[format('{0}/subnets/management', resourceId('Microsoft.Network/virtualNetworks', format('{0}-hub', parameters('prefix'))))]",
+                "l2": "[format('{0}/subnets/l2', resourceId('Microsoft.Network/virtualNetworks', format('{0}-plant', parameters('prefix'))))]",
+                "l3Windows": "[format('{0}/subnets/l3Windows', resourceId('Microsoft.Network/virtualNetworks', format('{0}-plant', parameters('prefix'))))]",
+                "l3Linux": "[format('{0}/subnets/l3Linux', resourceId('Microsoft.Network/virtualNetworks', format('{0}-plant', parameters('prefix'))))]",
+                "wec": "[format('{0}/subnets/wec', resourceId('Microsoft.Network/virtualNetworks', format('{0}-plant', parameters('prefix'))))]",
+                "proxy": "[format('{0}/subnets/proxy', resourceId('Microsoft.Network/virtualNetworks', format('{0}-dmz', parameters('prefix'))))]"
+              }
+            },
+            "bastionName": {
+              "type": "string",
+              "value": "[format('{0}-bastion', parameters('prefix'))]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('{0}-firewall', parameters('prefix'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "prefix": {
+            "value": "[parameters('prefix')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[parameters('tags')]"
+          },
+          "subnetIds": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-network', parameters('prefix'))), '2025-04-01').outputs.subnetIds.value]"
+          },
+          "ips": {
+            "value": "[variables('ips')]"
+          },
+          "workspaceResourceId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-monitoring', parameters('prefix'))), '2025-04-01').outputs.workspaceResourceId.value]"
+          },
+          "workspaceCustomerId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-monitoring', parameters('prefix'))), '2025-04-01').outputs.workspaceCustomerId.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.46.1.21595",
+              "templateHash": "6019656097498873418"
+            }
+          },
+          "parameters": {
+            "prefix": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object"
+            },
+            "subnetIds": {
+              "type": "object"
+            },
+            "ips": {
+              "type": "object"
+            },
+            "workspaceResourceId": {
+              "type": "string"
+            },
+            "workspaceCustomerId": {
+              "type": "string"
+            }
+          },
+          "variables": {
+            "copy": [
+              {
+                "name": "manifestHttpsFqdns",
+                "count": "[length(variables('egress').httpsFqdns)]",
+                "input": "[replace(replace(variables('egress').httpsFqdns[copyIndex('manifestHttpsFqdns')], '{workspaceId}', parameters('workspaceCustomerId')), '{region}', toLower(parameters('location')))]"
+              },
+              {
+                "name": "httpFqdns",
+                "count": "[length(variables('egress').httpFqdns)]",
+                "input": "[replace(replace(variables('egress').httpFqdns[copyIndex('httpFqdns')], '{workspaceId}', parameters('workspaceCustomerId')), '{region}', toLower(parameters('location')))]"
+              }
+            ],
+            "$fxv#0": {
+              "httpsFqdns": [
+                "*.delivery.mp.microsoft.com",
+                "*.download.microsoft.com",
+                "*.download.windowsupdate.com",
+                "*.endpoint.security.microsoft.com",
+                "*.guestconfiguration.azure.com",
+                "*.guestnotificationservice.azure.com",
+                "*.his.arc.azure.com",
+                "*.login.microsoft.com",
+                "*.servicebus.windows.net",
+                "*.update.microsoft.com",
+                "*.windowsupdate.com",
+                "aka.ms",
+                "archive.ubuntu.com",
+                "azure.archive.ubuntu.com",
+                "cacerts.digicert.com",
+                "config.edge.skype.com",
+                "crl3.digicert.com",
+                "crl4.digicert.com",
+                "definitionupdates.microsoft.com",
+                "download.microsoft.com",
+                "eastus2.handler.control.monitor.azure.com",
+                "global.handler.control.monitor.azure.com",
+                "go.microsoft.com",
+                "guestnotificationservice.azure.com",
+                "login.microsoftonline.com",
+                "management.azure.com",
+                "msdefender.download.prss.microsoft.com",
+                "ocsp.digicert.com",
+                "oneocsp.microsoft.com",
+                "packages.microsoft.com",
+                "pas.windows.net",
+                "security.ubuntu.com",
+                "www.microsoft.com"
+              ],
+              "httpFqdns": [
+                "*.delivery.mp.microsoft.com",
+                "*.download.windowsupdate.com",
+                "archive.ubuntu.com",
+                "azure.archive.ubuntu.com",
+                "cacerts.digicert.com",
+                "crl.microsoft.com",
+                "crl3.digicert.com",
+                "crl4.digicert.com",
+                "ctldl.windowsupdate.com",
+                "download.windowsupdate.com",
+                "ocsp.digicert.com",
+                "oneocsp.microsoft.com",
+                "security.ubuntu.com",
+                "www.microsoft.com"
+              ],
+              "squidHttpsDomains": [
+                ".delivery.mp.microsoft.com",
+                ".download.microsoft.com",
+                ".endpoint.security.microsoft.com",
+                ".guestconfiguration.azure.com",
+                ".guestnotificationservice.azure.com",
+                ".his.arc.azure.com",
+                ".login.microsoft.com",
+                ".servicebus.windows.net",
+                ".update.microsoft.com",
+                ".windowsupdate.com",
+                "aka.ms",
+                "archive.ubuntu.com",
+                "azure.archive.ubuntu.com",
+                "cacerts.digicert.com",
+                "config.edge.skype.com",
+                "crl3.digicert.com",
+                "crl4.digicert.com",
+                "definitionupdates.microsoft.com",
+                "eastus2.handler.control.monitor.azure.com",
+                "global.handler.control.monitor.azure.com",
+                "go.microsoft.com",
+                "login.microsoftonline.com",
+                "management.azure.com",
+                "msdefender.download.prss.microsoft.com",
+                "ocsp.digicert.com",
+                "oneocsp.microsoft.com",
+                "packages.microsoft.com",
+                "pas.windows.net",
+                "security.ubuntu.com",
+                "www.microsoft.com"
+              ],
+              "squidHttpDomains": [
+                ".delivery.mp.microsoft.com",
+                ".download.windowsupdate.com",
+                "archive.ubuntu.com",
+                "azure.archive.ubuntu.com",
+                "cacerts.digicert.com",
+                "crl.microsoft.com",
+                "crl3.digicert.com",
+                "crl4.digicert.com",
+                "ctldl.windowsupdate.com",
+                "ocsp.digicert.com",
+                "oneocsp.microsoft.com",
+                "security.ubuntu.com",
+                "www.microsoft.com"
+              ],
+              "squidDomains": [
+                ".delivery.mp.microsoft.com",
+                ".download.microsoft.com",
+                ".endpoint.security.microsoft.com",
+                ".guestconfiguration.azure.com",
+                ".guestnotificationservice.azure.com",
+                ".his.arc.azure.com",
+                ".login.microsoft.com",
+                ".servicebus.windows.net",
+                ".update.microsoft.com",
+                ".windowsupdate.com",
+                "aka.ms",
+                "archive.ubuntu.com",
+                "azure.archive.ubuntu.com",
+                "cacerts.digicert.com",
+                "config.edge.skype.com",
+                "crl.microsoft.com",
+                "crl3.digicert.com",
+                "crl4.digicert.com",
+                "definitionupdates.microsoft.com",
+                "eastus2.handler.control.monitor.azure.com",
+                "global.handler.control.monitor.azure.com",
+                "go.microsoft.com",
+                "login.microsoftonline.com",
+                "management.azure.com",
+                "msdefender.download.prss.microsoft.com",
+                "ocsp.digicert.com",
+                "oneocsp.microsoft.com",
+                "packages.microsoft.com",
+                "pas.windows.net",
+                "security.ubuntu.com",
+                "www.microsoft.com"
+              ]
+            },
+            "egress": "[variables('$fxv#0')]",
+            "httpsFqdns": "[union(variables('manifestHttpsFqdns'), createArray(format('{0}.ods.opinsights.azure.com', parameters('workspaceCustomerId')), format('{0}.handler.control.monitor.azure.com', toLower(parameters('location')))))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/firewallPolicies",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}-fw-policy', parameters('prefix'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "sku": {
+                  "tier": "Basic"
+                },
+                "threatIntelMode": "Alert"
+              }
+            },
+            {
+              "type": "Microsoft.Network/firewallPolicies/ruleCollectionGroups",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}/{1}', format('{0}-fw-policy', parameters('prefix')), 'restricted-egress')]",
+              "properties": {
+                "priority": 100,
+                "ruleCollections": [
+                  {
+                    "name": "private-service-chain",
+                    "priority": 100,
+                    "ruleCollectionType": "FirewallPolicyFilterRuleCollection",
+                    "action": {
+                      "type": "Allow"
+                    },
+                    "rules": [
+                      {
+                        "name": "plant-to-private-proxy",
+                        "ruleType": "NetworkRule",
+                        "ipProtocols": [
+                          "TCP"
+                        ],
+                        "sourceAddresses": [
+                          "[parameters('ips').l2]",
+                          "[parameters('ips').l3Windows]",
+                          "[parameters('ips').l3Linux]",
+                          "[parameters('ips').wec]"
+                        ],
+                        "destinationAddresses": [
+                          "[parameters('ips').proxy]"
+                        ],
+                        "destinationPorts": [
+                          "3128"
+                        ]
+                      },
+                      {
+                        "name": "L2-to-WEC-HTTPS",
+                        "ruleType": "NetworkRule",
+                        "ipProtocols": [
+                          "TCP"
+                        ],
+                        "sourceAddresses": [
+                          "[parameters('ips').l2]"
+                        ],
+                        "destinationAddresses": [
+                          "[parameters('ips').wec]"
+                        ],
+                        "destinationPorts": [
+                          "5986"
+                        ]
+                      },
+                      {
+                        "name": "Windows-to-internal-CRL",
+                        "ruleType": "NetworkRule",
+                        "ipProtocols": [
+                          "TCP"
+                        ],
+                        "sourceAddresses": [
+                          "[parameters('ips').l2]",
+                          "[parameters('ips').l3Windows]"
+                        ],
+                        "destinationAddresses": [
+                          "[parameters('ips').wec]"
+                        ],
+                        "destinationPorts": [
+                          "80"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "proxy-application-egress",
+                    "priority": 200,
+                    "ruleCollectionType": "FirewallPolicyFilterRuleCollection",
+                    "action": {
+                      "type": "Allow"
+                    },
+                    "rules": "[concat(createArray(createObject('name', 'proxy-approved-HTTPS', 'ruleType', 'ApplicationRule', 'sourceAddresses', createArray(parameters('ips').proxy), 'protocols', createArray(createObject('protocolType', 'Https', 'port', 443)), 'targetFqdns', variables('httpsFqdns'), 'terminateTLS', false()), createObject('name', 'proxy-bootstrap-Ubuntu-packages', 'ruleType', 'ApplicationRule', 'sourceAddresses', createArray(parameters('ips').proxy), 'protocols', createArray(createObject('protocolType', 'Http', 'port', 80)), 'targetFqdns', createArray('archive.ubuntu.com', 'security.ubuntu.com'), 'terminateTLS', false())), if(empty(variables('httpFqdns')), createArray(), createArray(createObject('name', 'proxy-approved-HTTP', 'ruleType', 'ApplicationRule', 'sourceAddresses', createArray(parameters('ips').proxy), 'protocols', createArray(createObject('protocolType', 'Http', 'port', 80)), 'targetFqdns', variables('httpFqdns'), 'terminateTLS', false()))))]"
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/firewallPolicies', format('{0}-fw-policy', parameters('prefix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/publicIPAddresses",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}-firewall-data-pip', parameters('prefix'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "Standard"
+              },
+              "properties": {
+                "publicIPAllocationMethod": "Static"
+              }
+            },
+            {
+              "type": "Microsoft.Network/publicIPAddresses",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}-firewall-management-pip', parameters('prefix'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "Standard"
+              },
+              "properties": {
+                "publicIPAllocationMethod": "Static"
+              }
+            },
+            {
+              "type": "Microsoft.Network/azureFirewalls",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}-firewall', parameters('prefix'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "sku": {
+                  "name": "AZFW_VNet",
+                  "tier": "Basic"
+                },
+                "firewallPolicy": {
+                  "id": "[resourceId('Microsoft.Network/firewallPolicies', format('{0}-fw-policy', parameters('prefix')))]"
+                },
+                "ipConfigurations": [
+                  {
+                    "name": "data",
+                    "properties": {
+                      "subnet": {
+                        "id": "[parameters('subnetIds').firewall]"
+                      },
+                      "publicIPAddress": {
+                        "id": "[resourceId('Microsoft.Network/publicIPAddresses', format('{0}-firewall-data-pip', parameters('prefix')))]"
+                      }
+                    }
+                  }
+                ],
+                "managementIpConfiguration": {
+                  "name": "management",
+                  "properties": {
+                    "subnet": {
+                      "id": "[parameters('subnetIds').firewallManagement]"
+                    },
+                    "publicIPAddress": {
+                      "id": "[resourceId('Microsoft.Network/publicIPAddresses', format('{0}-firewall-management-pip', parameters('prefix')))]"
+                    }
+                  }
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', format('{0}-firewall-data-pip', parameters('prefix')))]",
+                "[resourceId('Microsoft.Network/publicIPAddresses', format('{0}-firewall-management-pip', parameters('prefix')))]",
+                "[resourceId('Microsoft.Network/firewallPolicies', format('{0}-fw-policy', parameters('prefix')))]",
+                "[resourceId('Microsoft.Network/firewallPolicies/ruleCollectionGroups', format('{0}-fw-policy', parameters('prefix')), 'restricted-egress')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Insights/diagnosticSettings",
+              "apiVersion": "2021-05-01-preview",
+              "scope": "[resourceId('Microsoft.Network/azureFirewalls', format('{0}-firewall', parameters('prefix')))]",
+              "name": "firewall-to-workspace",
+              "properties": {
+                "workspaceId": "[parameters('workspaceResourceId')]",
+                "logAnalyticsDestinationType": "Dedicated",
+                "logs": [
+                  {
+                    "category": "AzureFirewallApplicationRule",
+                    "enabled": true
+                  },
+                  {
+                    "category": "AzureFirewallNetworkRule",
+                    "enabled": true
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/azureFirewalls', format('{0}-firewall', parameters('prefix')))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "privateIp": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Network/azureFirewalls', format('{0}-firewall', parameters('prefix'))), '2024-05-01').ipConfigurations[0].properties.privateIPAddress]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-monitoring', parameters('prefix')))]",
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-network', parameters('prefix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('{0}-routing', parameters('prefix'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "routeTableNames": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-network', parameters('prefix'))), '2025-04-01').outputs.routeTableNames.value]"
+          },
+          "firewallPrivateIp": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-firewall', parameters('prefix'))), '2025-04-01').outputs.privateIp.value]"
+          },
+          "addressPlan": {
+            "value": "[parameters('addressPlan')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.46.1.21595",
+              "templateHash": "6049143359945160020"
+            }
+          },
+          "parameters": {
+            "routeTableNames": {
+              "type": "array"
+            },
+            "firewallPrivateIp": {
+              "type": "string"
+            },
+            "addressPlan": {
+              "type": "object"
+            }
+          },
+          "resources": [
+            {
+              "copy": {
+                "name": "defaults",
+                "count": "[length(parameters('routeTableNames'))]"
+              },
+              "type": "Microsoft.Network/routeTables/routes",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}/{1}', parameters('routeTableNames')[copyIndex()], 'default-via-firewall')]",
+              "properties": {
+                "addressPrefix": "0.0.0.0/0",
+                "nextHopType": "VirtualAppliance",
+                "nextHopIpAddress": "[parameters('firewallPrivateIp')]"
+              }
+            },
+            {
+              "copy": {
+                "name": "plantRoutes",
+                "count": "[length(range(1, 4))]"
+              },
+              "type": "Microsoft.Network/routeTables/routes",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}/{1}', parameters('routeTableNames')[range(1, 4)[copyIndex()]], 'plant-via-firewall')]",
+              "properties": {
+                "addressPrefix": "[parameters('addressPlan').plant]",
+                "nextHopType": "VirtualAppliance",
+                "nextHopIpAddress": "[parameters('firewallPrivateIp')]"
+              }
+            },
+            {
+              "copy": {
+                "name": "dmzRoutes",
+                "count": "[length(range(1, 4))]"
+              },
+              "type": "Microsoft.Network/routeTables/routes",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}/{1}', parameters('routeTableNames')[range(1, 4)[copyIndex()]], 'dmz-via-firewall')]",
+              "properties": {
+                "addressPrefix": "[parameters('addressPlan').dmz]",
+                "nextHopType": "VirtualAppliance",
+                "nextHopIpAddress": "[parameters('firewallPrivateIp')]"
+              }
+            },
+            {
+              "type": "Microsoft.Network/routeTables/routes",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}/{1}', parameters('routeTableNames')[5], 'plant-return-via-firewall')]",
+              "properties": {
+                "addressPrefix": "[parameters('addressPlan').plant]",
+                "nextHopType": "VirtualAppliance",
+                "nextHopIpAddress": "[parameters('firewallPrivateIp')]"
+              }
+            },
+            {
+              "type": "Microsoft.Network/routeTables/routes",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}/{1}', parameters('routeTableNames')[1], 'wef-to-collector-via-firewall')]",
+              "properties": {
+                "addressPrefix": "[format('{0}/32', cidrHost(parameters('addressPlan').wec, 4))]",
+                "nextHopType": "VirtualAppliance",
+                "nextHopIpAddress": "[parameters('firewallPrivateIp')]"
+              }
+            },
+            {
+              "type": "Microsoft.Network/routeTables/routes",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}/{1}', parameters('routeTableNames')[4], 'wef-source-return-via-firewall')]",
+              "properties": {
+                "addressPrefix": "[format('{0}/32', cidrHost(parameters('addressPlan').l2, 4))]",
+                "nextHopType": "VirtualAppliance",
+                "nextHopIpAddress": "[parameters('firewallPrivateIp')]"
+              }
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-firewall', parameters('prefix')))]",
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-network', parameters('prefix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('{0}-compute', parameters('prefix'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[parameters('tags')]"
+          },
+          "names": {
+            "value": "[variables('names')]"
+          },
+          "ips": {
+            "value": "[variables('ips')]"
+          },
+          "subnetIds": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-network', parameters('prefix'))), '2025-04-01').outputs.subnetIds.value]"
+          },
+          "adminUsername": {
+            "value": "[parameters('adminUsername')]"
+          },
+          "adminPassword": {
+            "value": "[parameters('adminPassword')]"
+          },
+          "linuxSshPublicKey": {
+            "value": "[parameters('linuxSshPublicKey')]"
+          },
+          "windowsVmSize": {
+            "value": "[parameters('windowsVmSize')]"
+          },
+          "linuxVmSize": {
+            "value": "[parameters('linuxVmSize')]"
+          },
+          "windowsServerImageVersion": {
+            "value": "[parameters('windowsServerImageVersion')]"
+          },
+          "windows11ImageVersion": {
+            "value": "[parameters('windows11ImageVersion')]"
+          },
+          "ubuntuImageVersion": {
+            "value": "[parameters('ubuntuImageVersion')]"
+          },
+          "workspaceCustomerId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-monitoring', parameters('prefix'))), '2025-04-01').outputs.workspaceCustomerId.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.46.1.21595",
+              "templateHash": "10697487490011619750"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object"
+            },
+            "names": {
+              "type": "object"
+            },
+            "ips": {
+              "type": "object"
+            },
+            "subnetIds": {
+              "type": "object"
+            },
+            "adminUsername": {
+              "type": "string"
+            },
+            "adminPassword": {
+              "type": "securestring"
+            },
+            "linuxSshPublicKey": {
+              "type": "string"
+            },
+            "windowsVmSize": {
+              "type": "string"
+            },
+            "linuxVmSize": {
+              "type": "string"
+            },
+            "windowsServerImageVersion": {
+              "type": "string"
+            },
+            "windows11ImageVersion": {
+              "type": "string"
+            },
+            "ubuntuImageVersion": {
+              "type": "string"
+            },
+            "workspaceCustomerId": {
+              "type": "string"
+            }
+          },
+          "variables": {
+            "copy": [
+              {
+                "name": "manifestSquidDomains",
+                "count": "[length(variables('egress').squidHttpsDomains)]",
+                "input": "[replace(replace(variables('egress').squidHttpsDomains[copyIndex('manifestSquidDomains')], '{workspaceId}', parameters('workspaceCustomerId')), '{region}', toLower(parameters('location')))]"
+              },
+              {
+                "name": "manifestHttpDomains",
+                "count": "[length(variables('egress').squidHttpDomains)]",
+                "input": "[replace(replace(variables('egress').squidHttpDomains[copyIndex('manifestHttpDomains')], '{workspaceId}', parameters('workspaceCustomerId')), '{region}', toLower(parameters('location')))]"
+              }
+            ],
+            "$fxv#0": {
+              "httpsFqdns": [
+                "*.delivery.mp.microsoft.com",
+                "*.download.microsoft.com",
+                "*.download.windowsupdate.com",
+                "*.endpoint.security.microsoft.com",
+                "*.guestconfiguration.azure.com",
+                "*.guestnotificationservice.azure.com",
+                "*.his.arc.azure.com",
+                "*.login.microsoft.com",
+                "*.servicebus.windows.net",
+                "*.update.microsoft.com",
+                "*.windowsupdate.com",
+                "aka.ms",
+                "archive.ubuntu.com",
+                "azure.archive.ubuntu.com",
+                "cacerts.digicert.com",
+                "config.edge.skype.com",
+                "crl3.digicert.com",
+                "crl4.digicert.com",
+                "definitionupdates.microsoft.com",
+                "download.microsoft.com",
+                "eastus2.handler.control.monitor.azure.com",
+                "global.handler.control.monitor.azure.com",
+                "go.microsoft.com",
+                "guestnotificationservice.azure.com",
+                "login.microsoftonline.com",
+                "management.azure.com",
+                "msdefender.download.prss.microsoft.com",
+                "ocsp.digicert.com",
+                "oneocsp.microsoft.com",
+                "packages.microsoft.com",
+                "pas.windows.net",
+                "security.ubuntu.com",
+                "www.microsoft.com"
+              ],
+              "httpFqdns": [
+                "*.delivery.mp.microsoft.com",
+                "*.download.windowsupdate.com",
+                "archive.ubuntu.com",
+                "azure.archive.ubuntu.com",
+                "cacerts.digicert.com",
+                "crl.microsoft.com",
+                "crl3.digicert.com",
+                "crl4.digicert.com",
+                "ctldl.windowsupdate.com",
+                "download.windowsupdate.com",
+                "ocsp.digicert.com",
+                "oneocsp.microsoft.com",
+                "security.ubuntu.com",
+                "www.microsoft.com"
+              ],
+              "squidHttpsDomains": [
+                ".delivery.mp.microsoft.com",
+                ".download.microsoft.com",
+                ".endpoint.security.microsoft.com",
+                ".guestconfiguration.azure.com",
+                ".guestnotificationservice.azure.com",
+                ".his.arc.azure.com",
+                ".login.microsoft.com",
+                ".servicebus.windows.net",
+                ".update.microsoft.com",
+                ".windowsupdate.com",
+                "aka.ms",
+                "archive.ubuntu.com",
+                "azure.archive.ubuntu.com",
+                "cacerts.digicert.com",
+                "config.edge.skype.com",
+                "crl3.digicert.com",
+                "crl4.digicert.com",
+                "definitionupdates.microsoft.com",
+                "eastus2.handler.control.monitor.azure.com",
+                "global.handler.control.monitor.azure.com",
+                "go.microsoft.com",
+                "login.microsoftonline.com",
+                "management.azure.com",
+                "msdefender.download.prss.microsoft.com",
+                "ocsp.digicert.com",
+                "oneocsp.microsoft.com",
+                "packages.microsoft.com",
+                "pas.windows.net",
+                "security.ubuntu.com",
+                "www.microsoft.com"
+              ],
+              "squidHttpDomains": [
+                ".delivery.mp.microsoft.com",
+                ".download.windowsupdate.com",
+                "archive.ubuntu.com",
+                "azure.archive.ubuntu.com",
+                "cacerts.digicert.com",
+                "crl.microsoft.com",
+                "crl3.digicert.com",
+                "crl4.digicert.com",
+                "ctldl.windowsupdate.com",
+                "ocsp.digicert.com",
+                "oneocsp.microsoft.com",
+                "security.ubuntu.com",
+                "www.microsoft.com"
+              ],
+              "squidDomains": [
+                ".delivery.mp.microsoft.com",
+                ".download.microsoft.com",
+                ".endpoint.security.microsoft.com",
+                ".guestconfiguration.azure.com",
+                ".guestnotificationservice.azure.com",
+                ".his.arc.azure.com",
+                ".login.microsoft.com",
+                ".servicebus.windows.net",
+                ".update.microsoft.com",
+                ".windowsupdate.com",
+                "aka.ms",
+                "archive.ubuntu.com",
+                "azure.archive.ubuntu.com",
+                "cacerts.digicert.com",
+                "config.edge.skype.com",
+                "crl.microsoft.com",
+                "crl3.digicert.com",
+                "crl4.digicert.com",
+                "definitionupdates.microsoft.com",
+                "eastus2.handler.control.monitor.azure.com",
+                "global.handler.control.monitor.azure.com",
+                "go.microsoft.com",
+                "login.microsoftonline.com",
+                "management.azure.com",
+                "msdefender.download.prss.microsoft.com",
+                "ocsp.digicert.com",
+                "oneocsp.microsoft.com",
+                "packages.microsoft.com",
+                "pas.windows.net",
+                "security.ubuntu.com",
+                "www.microsoft.com"
+              ]
+            },
+            "$fxv#1": "visible_hostname ot-dmz-proxy\r\nhttp_port __PROXY_IP__:3128\r\nhttp_port 127.0.0.1:3128\r\nacl lab_loopback src 127.0.0.1/32 ::1\r\nacl lab_clients src __CLIENT_IPS__\r\nacl CONNECT method CONNECT\r\nacl SSL_ports port 443\r\nacl HTTP_ports port 80\r\nacl approved_tls dstdomain \"/etc/squid/https-domains.txt\"\r\nacl approved_http dstdomain \"/etc/squid/http-domains.txt\"\r\nhttp_access deny CONNECT !SSL_ports\r\nhttp_access allow lab_loopback CONNECT approved_tls\r\nhttp_access allow lab_clients CONNECT approved_tls\r\nhttp_access allow lab_loopback !CONNECT HTTP_ports approved_http\r\nhttp_access allow lab_clients !CONNECT HTTP_ports approved_http\r\nhttp_access deny all\r\ncache deny all\r\naccess_log daemon:/var/log/squid/access.log squid\r\ncache_log /var/log/squid/cache.log\r\nforwarded_for delete\r\nshutdown_lifetime 3 seconds\r\n",
+            "$fxv#2": "#cloud-config\r\npackage_update: false\r\npackage_upgrade: false\r\napt:\r\n  preserve_sources_list: true\r\nbootcmd:\r\n  - [systemctl, mask, --now, apt-daily.timer, apt-daily-upgrade.timer, apt-daily.service, apt-daily-upgrade.service, unattended-upgrades.service]\r\nwrite_files:\r\n  - path: /etc/apt/sources.list.d/ubuntu.sources\r\n    permissions: '0644'\r\n    content: |\r\n      Types: deb\r\n      URIs: http://archive.ubuntu.com/ubuntu\r\n      Suites: noble noble-updates\r\n      Components: main universe\r\n      Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg\r\n\r\n      Types: deb\r\n      URIs: http://security.ubuntu.com/ubuntu\r\n      Suites: noble-security\r\n      Components: main universe\r\n      Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg\r\n  - path: /etc/cloud/cloud.cfg.d/99-preserve-apt.cfg\r\n    content: |\r\n      apt:\r\n        preserve_sources_list: true\r\n  - path: /usr/local/share/otlab/squid.conf.b64\r\n    permissions: '0644'\r\n    content: __SQUID_CONFIG_BASE64__\r\n  - path: /usr/local/share/otlab/https-domains.b64\r\n    permissions: '0644'\r\n    content: __HTTPS_DOMAINS_BASE64__\r\n  - path: /usr/local/share/otlab/http-domains.b64\r\n    permissions: '0644'\r\n    content: __HTTP_DOMAINS_BASE64__\r\n  - path: /usr/local/sbin/bootstrap-ot-proxy\r\n    permissions: '0755'\r\n    content: |\r\n      #!/bin/bash\r\n      set -euo pipefail\r\n      export DEBIAN_FRONTEND=noninteractive\r\n      # Only the two pinned Ubuntu HTTP mirrors are reachable before Squid exists.\r\n      rm -f /etc/apt/sources.list\r\n      apt-get -o Acquire::Retries=5 update\r\n      systemctl mask squid.service\r\n      apt-get -o Acquire::Retries=5 install --no-install-recommends -y squid\r\n      base64 --decode /usr/local/share/otlab/squid.conf.b64 > /etc/squid/squid.conf\r\n      base64 --decode /usr/local/share/otlab/https-domains.b64 > /etc/squid/https-domains.txt\r\n      base64 --decode /usr/local/share/otlab/http-domains.b64 > /etc/squid/http-domains.txt\r\n      squid -k parse\r\n      systemctl unmask squid.service\r\n      systemctl enable squid\r\n      systemctl restart squid\r\n      printf 'Acquire::http::Proxy \"http://127.0.0.1:3128\";\\nAcquire::https::Proxy \"http://127.0.0.1:3128\";\\n' > /etc/apt/apt.conf.d/90-otlab-proxy\r\n      touch /var/lib/otlab-proxy-ready\r\nruncmd:\r\n  - [bash, /usr/local/sbin/bootstrap-ot-proxy]\r\n",
+            "keys": [
+              "management",
+              "l2",
+              "l3Windows",
+              "l3Linux",
+              "wec",
+              "proxy"
+            ],
+            "linuxKeys": [
+              "l3Linux",
+              "proxy"
+            ],
+            "egress": "[variables('$fxv#0')]",
+            "allHttpsDomains": "[union(variables('manifestSquidDomains'), createArray(format('{0}.ods.opinsights.azure.com', parameters('workspaceCustomerId')), format('{0}.handler.control.monitor.azure.com', toLower(parameters('location')))))]",
+            "allHttpDomains": "[union(variables('manifestHttpDomains'), createArray('archive.ubuntu.com', 'security.ubuntu.com'))]",
+            "squidDomains": "[filter(variables('allHttpsDomains'), lambda('domain', empty(filter(variables('allHttpsDomains'), lambda('candidate', and(and(not(equals(lambdaVariables('candidate'), lambdaVariables('domain'))), startsWith(lambdaVariables('candidate'), '.')), or(endsWith(lambdaVariables('domain'), lambdaVariables('candidate')), equals(lambdaVariables('domain'), substring(lambdaVariables('candidate'), 1)))))))))]",
+            "allowedHttpDomains": "[filter(variables('allHttpDomains'), lambda('domain', empty(filter(variables('allHttpDomains'), lambda('candidate', and(and(not(equals(lambdaVariables('candidate'), lambdaVariables('domain'))), startsWith(lambdaVariables('candidate'), '.')), or(endsWith(lambdaVariables('domain'), lambdaVariables('candidate')), equals(lambdaVariables('domain'), substring(lambdaVariables('candidate'), 1)))))))))]",
+            "clientIps": [
+              "[parameters('ips').management]",
+              "[parameters('ips').l2]",
+              "[parameters('ips').l3Windows]",
+              "[parameters('ips').l3Linux]",
+              "[parameters('ips').wec]"
+            ],
+            "squidConfig": "[replace(replace(variables('$fxv#1'), '__PROXY_IP__', parameters('ips').proxy), '__CLIENT_IPS__', join(variables('clientIps'), ' '))]",
+            "cloudInit": "[replace(replace(replace(variables('$fxv#2'), '__SQUID_CONFIG_BASE64__', base64(variables('squidConfig'))), '__HTTPS_DOMAINS_BASE64__', base64(join(variables('squidDomains'), '\n'))), '__HTTP_DOMAINS_BASE64__', base64(join(variables('allowedHttpDomains'), '\n')))]"
+          },
+          "resources": [
+            {
+              "copy": {
+                "name": "nics",
+                "count": "[length(variables('keys'))]"
+              },
+              "type": "Microsoft.Network/networkInterfaces",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}-nic', parameters('names')[variables('keys')[copyIndex()]])]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "enableIPForwarding": false,
+                "ipConfigurations": [
+                  {
+                    "name": "private",
+                    "properties": {
+                      "primary": true,
+                      "privateIPAllocationMethod": "Static",
+                      "privateIPAddress": "[parameters('ips')[variables('keys')[copyIndex()]]]",
+                      "subnet": {
+                        "id": "[parameters('subnetIds')[variables('keys')[copyIndex()]]]"
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "copy": {
+                "name": "vms",
+                "count": "[length(variables('keys'))]"
+              },
+              "type": "Microsoft.Compute/virtualMachines",
+              "apiVersion": "2024-07-01",
+              "name": "[parameters('names')[variables('keys')[copyIndex()]]]",
+              "location": "[parameters('location')]",
+              "tags": "[union(parameters('tags'), createObject('role', variables('keys')[copyIndex()]))]",
+              "identity": {
+                "type": "[if(contains(createArray('l3Windows', 'l3Linux', 'wec'), variables('keys')[copyIndex()]), 'None', 'SystemAssigned')]"
+              },
+              "properties": {
+                "hardwareProfile": {
+                  "vmSize": "[if(contains(variables('linuxKeys'), variables('keys')[copyIndex()]), parameters('linuxVmSize'), parameters('windowsVmSize'))]"
+                },
+                "licenseType": "[if(equals(variables('keys')[copyIndex()], 'l2'), 'Windows_Client', null())]",
+                "storageProfile": {
+                  "imageReference": "[if(contains(variables('linuxKeys'), variables('keys')[copyIndex()]), createObject('publisher', 'Canonical', 'offer', 'ubuntu-24_04-lts', 'sku', 'server', 'version', parameters('ubuntuImageVersion')), if(equals(variables('keys')[copyIndex()], 'l2'), createObject('publisher', 'MicrosoftWindowsDesktop', 'offer', 'windows-11', 'sku', 'win11-24h2-ent', 'version', parameters('windows11ImageVersion')), createObject('publisher', 'MicrosoftWindowsServer', 'offer', 'WindowsServer', 'sku', '2022-datacenter-azure-edition', 'version', parameters('windowsServerImageVersion'))))]",
+                  "osDisk": {
+                    "name": "[format('{0}-os', parameters('names')[variables('keys')[copyIndex()]])]",
+                    "createOption": "FromImage",
+                    "deleteOption": "Delete",
+                    "managedDisk": {
+                      "storageAccountType": "StandardSSD_LRS"
+                    }
+                  }
+                },
+                "osProfile": "[union(createObject('computerName', parameters('names')[variables('keys')[copyIndex()]], 'adminUsername', parameters('adminUsername')), if(contains(variables('linuxKeys'), variables('keys')[copyIndex()]), createObject('linuxConfiguration', createObject('disablePasswordAuthentication', true(), 'provisionVMAgent', true(), 'ssh', createObject('publicKeys', createArray(createObject('path', format('/home/{0}/.ssh/authorized_keys', parameters('adminUsername')), 'keyData', parameters('linuxSshPublicKey')))))), createObject('adminPassword', parameters('adminPassword'), 'windowsConfiguration', createObject('provisionVMAgent', true(), 'enableAutomaticUpdates', false(), 'patchSettings', createObject('patchMode', 'Manual', 'assessmentMode', 'ImageDefault')))), if(equals(variables('keys')[copyIndex()], 'proxy'), createObject('customData', base64(variables('cloudInit'))), createObject()))]",
+                "networkProfile": {
+                  "networkInterfaces": [
+                    {
+                      "id": "[resourceId('Microsoft.Network/networkInterfaces', format('{0}-nic', parameters('names')[variables('keys')[copyIndex()]]))]",
+                      "properties": {
+                        "primary": true,
+                        "deleteOption": "Delete"
+                      }
+                    }
+                  ]
+                },
+                "securityProfile": {
+                  "securityType": "TrustedLaunch",
+                  "uefiSettings": {
+                    "secureBootEnabled": true,
+                    "vTpmEnabled": true
+                  }
+                },
+                "diagnosticsProfile": {
+                  "bootDiagnostics": {
+                    "enabled": true
+                  }
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkInterfaces', format('{0}-nic', parameters('names')[variables('keys')[copyIndex()]]))]"
+              ]
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-firewall', parameters('prefix')))]",
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-monitoring', parameters('prefix')))]",
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-network', parameters('prefix')))]",
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-routing', parameters('prefix')))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "vmNames": {
+      "type": "object",
+      "value": "[variables('names')]"
+    },
+    "privateIps": {
+      "type": "object",
+      "value": "[variables('ips')]"
+    },
+    "proxyUrl": {
+      "type": "string",
+      "value": "[format('http://{0}:3128', variables('ips').proxy)]"
+    },
+    "collectorFqdn": {
+      "type": "string",
+      "value": "[format('wec.{0}', parameters('privateDnsZoneName'))]"
+    },
+    "workspaceId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-monitoring', parameters('prefix'))), '2025-04-01').outputs.workspaceResourceId.value]"
+    },
+    "workspaceName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-monitoring', parameters('prefix'))), '2025-04-01').outputs.workspaceName.value]"
+    },
+    "workspaceCustomerId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-monitoring', parameters('prefix'))), '2025-04-01').outputs.workspaceCustomerId.value]"
+    },
+    "dcrIds": {
+      "type": "object",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-monitoring', parameters('prefix'))), '2025-04-01').outputs.dcrIds.value]"
+    },
+    "firewallPrivateIp": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-firewall', parameters('prefix'))), '2025-04-01').outputs.privateIp.value]"
+    },
+    "bastionName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-network', parameters('prefix'))), '2025-04-01').outputs.bastionName.value]"
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Benign local telemetry only; no physical process or offensive simulation.",
+  "windows": {
+    "roles": ["windows11", "windows2022"],
+    "eventLog": "Application",
+    "eventSource": "OT-Lab",
+    "eventId": 1000,
+    "intervalSeconds": 60,
+    "taskName": "OT-Lab-Heartbeat",
+    "mutableDataFile": "C:\\ProgramData\\OT-Lab\\data\\sample-state.json",
+    "exclusion": {
+      "type": "file",
+      "path": "C:\\ProgramData\\OT-Lab\\data\\sample-state.json",
+      "reason": "Synthetic mutable data only. No executable, directory, process, drive or extension exclusion.",
+      "scope": "Defender Antivirus path exclusion; does not suppress all EDR telemetry."
+    }
+  },
+  "linux": {
+    "role": "linuxUbuntu24",
+    "facility": "local0",
+    "severity": "info",
+    "tag": "OT-Lab",
+    "intervalSeconds": 60,
+    "unitName": "ot-lab-heartbeat.timer",
+    "mutableDataFile": "/var/lib/ot-lab/sample-state.json",
+    "exclusion": {
+      "type": "file",
+      "path": "/var/lib/ot-lab/sample-state.json",
+      "reason": "One synthetic mutable data file, not application code or a directory.",
+      "scope": "MDE Linux antivirus file exclusion; no global/EDR exclusion is requested."
+    }
+  },
+  "residualRisk": "Active AV remains active and can block or quarantine other files. Privileged response actions remain possible."
+}

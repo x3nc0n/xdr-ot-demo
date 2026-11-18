@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "cloud": "AzurePublic",
+  "reviewedOn": "2026-11-17",
+  "notes": [
+    "FQDN policy, not decrypted HTTPS URL-path filtering. No TLS interception.",
+    "Streamlined MDE only. Validate component eligibility and use a streamlined onboarding package.",
+    "Runtime workspace ingestion hostname is added by the template from the actual workspace ID.",
+    "Review certificate chains and extension downloads during preflight; add observed required hosts narrowly.",
+    "Maintenance remains enabled by default so active protection continues to update."
+  ],
+  "endpoints": [
+    {
+      "service": "MDE",
+      "phase": "runtime",
+      "ports": [443],
+      "fqdns": ["*.endpoint.security.microsoft.com", "config.edge.skype.com"],
+      "purpose": "Streamlined EDR/AV cloud and required Linux configuration",
+      "source": "https://learn.microsoft.com/en-us/defender-endpoint/streamlined-device-connectivity-urls-commercial"
+    },
+    {
+      "service": "Arc",
+      "phase": "runtime",
+      "ports": [443],
+      "fqdns": ["login.microsoftonline.com", "*.login.microsoft.com", "pas.windows.net", "management.azure.com", "*.his.arc.azure.com", "*.guestconfiguration.azure.com", "guestnotificationservice.azure.com", "*.guestnotificationservice.azure.com", "*.servicebus.windows.net"],
+      "purpose": "Arc identity, connection, extension management and notification; narrow servicebus using the regional allowlist when possible",
+      "source": "https://learn.microsoft.com/en-us/azure/azure-arc/servers/network-requirements"
+    },
+    {
+      "service": "AMA",
+      "phase": "runtime",
+      "ports": [443],
+      "fqdns": ["global.handler.control.monitor.azure.com", "eastus2.handler.control.monitor.azure.com"],
+      "purpose": "AMA control and default-region DCR retrieval; template additionally includes selected region and workspace-specific ingestion",
+      "source": "https://learn.microsoft.com/en-us/azure/azure-monitor/agents/azure-monitor-agent-network-configuration"
+    },
+    {
+      "service": "PKI",
+      "phase": "runtime",
+      "ports": [80],
+      "fqdns": ["www.microsoft.com", "ctldl.windowsupdate.com", "crl.microsoft.com"],
+      "purpose": "Microsoft public certificate/CTL validation. Host-level HTTP policy permits more than the documented PKI paths; see endpoint-policy.md",
+      "source": "https://learn.microsoft.com/en-us/defender-endpoint/streamlined-device-connectivity-urls-commercial"
+    },
+    {
+      "service": "PKI",
+      "phase": "runtime",
+      "ports": [80, 443],
+      "fqdns": ["crl3.digicert.com", "crl4.digicert.com", "ocsp.digicert.com", "cacerts.digicert.com", "oneocsp.microsoft.com"],
+      "purpose": "Common public certificate-chain dependencies; review actual endpoint certificates and remove unused hosts",
+      "source": "https://learn.microsoft.com/en-us/azure/azure-arc/servers/troubleshoot-networking"
+    },
+    {
+      "service": "MDE-updates",
+      "phase": "maintenance",
+      "ports": [443],
+      "fqdns": ["packages.microsoft.com", "go.microsoft.com", "definitionupdates.microsoft.com", "www.microsoft.com", "*.update.microsoft.com", "*.delivery.mp.microsoft.com", "*.windowsupdate.com", "*.download.windowsupdate.com", "*.download.microsoft.com"],
+      "purpose": "MDE Linux packages, AV intelligence/platform and Windows Update; redirects may require separately reviewed exact CDN hosts",
+      "source": "https://learn.microsoft.com/en-us/defender-endpoint/streamlined-device-connectivity-urls-commercial"
+    },
+    {
+      "service": "Windows-updates",
+      "phase": "maintenance",
+      "ports": [80],
+      "fqdns": ["download.windowsupdate.com", "*.download.windowsupdate.com", "*.delivery.mp.microsoft.com"],
+      "purpose": "Windows Update content transport; hash/signature validation remains required",
+      "source": "https://learn.microsoft.com/en-us/windows/deployment/update/windows-update-troubleshooting"
+    },
+    {
+      "service": "Ubuntu",
+      "phase": "maintenance",
+      "ports": [80, 443],
+      "fqdns": ["archive.ubuntu.com", "security.ubuntu.com", "azure.archive.ubuntu.com"],
+      "purpose": "Ubuntu package installation/updates; bootstrap normalizes repository hosts",
+      "source": "https://documentation.ubuntu.com/server/how-to/software/package-management/"
+    },
+    {
+      "service": "Installers",
+      "phase": "bootstrap",
+      "ports": [443],
+      "fqdns": ["download.microsoft.com", "packages.microsoft.com", "aka.ms", "msdefender.download.prss.microsoft.com"],
+      "purpose": "Installer retrieval; stage signed/hash-verified packages and review redirects",
+      "source": "https://learn.microsoft.com/en-us/azure/azure-arc/servers/network-requirements"
+    }
+  ]
+}

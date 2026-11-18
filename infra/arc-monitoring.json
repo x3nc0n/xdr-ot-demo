@@ -1,0 +1,115 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.46.1.21595",
+      "templateHash": "16693062374239260280"
+    }
+  },
+  "parameters": {
+    "windowsMachineName": {
+      "type": "string",
+      "metadata": {
+        "description": "Deploy only AFTER these Arc machines have been onboarded to THIS resource group with system-assigned identity. Never pass Compute VM resource IDs."
+      }
+    },
+    "wecMachineName": {
+      "type": "string"
+    },
+    "linuxMachineName": {
+      "type": "string"
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]"
+    },
+    "proxyUrl": {
+      "type": "string"
+    },
+    "localSecurityDcrId": {
+      "type": "string"
+    },
+    "wefDcrId": {
+      "type": "string"
+    },
+    "syslogDcrId": {
+      "type": "string"
+    }
+  },
+  "variables": {
+    "machines": [
+      {
+        "name": "[parameters('windowsMachineName')]",
+        "type": "AzureMonitorWindowsAgent",
+        "version": "1.0",
+        "dcrId": "[parameters('localSecurityDcrId')]"
+      },
+      {
+        "name": "[parameters('wecMachineName')]",
+        "type": "AzureMonitorWindowsAgent",
+        "version": "1.0",
+        "dcrId": "[parameters('wefDcrId')]"
+      },
+      {
+        "name": "[parameters('linuxMachineName')]",
+        "type": "AzureMonitorLinuxAgent",
+        "version": "1.0",
+        "dcrId": "[parameters('syslogDcrId')]"
+      }
+    ]
+  },
+  "resources": [
+    {
+      "copy": {
+        "name": "ama",
+        "count": "[length(variables('machines'))]"
+      },
+      "type": "Microsoft.HybridCompute/machines/extensions",
+      "apiVersion": "2024-07-10",
+      "name": "[format('{0}/{1}', variables('machines')[copyIndex()].name, variables('machines')[copyIndex()].type)]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "publisher": "Microsoft.Azure.Monitor",
+        "type": "[variables('machines')[copyIndex()].type]",
+        "typeHandlerVersion": "[variables('machines')[copyIndex()].version]",
+        "autoUpgradeMinorVersion": true,
+        "enableAutomaticUpgrade": true,
+        "settings": {
+          "proxy": {
+            "mode": "application",
+            "address": "[parameters('proxyUrl')]",
+            "auth": "false"
+          }
+        }
+      }
+    },
+    {
+      "copy": {
+        "name": "associations",
+        "count": "[length(variables('machines'))]"
+      },
+      "type": "Microsoft.Insights/dataCollectionRuleAssociations",
+      "apiVersion": "2023-03-11",
+      "scope": "[resourceId('Microsoft.HybridCompute/machines', variables('machines')[copyIndex()].name)]",
+      "name": "[format('otlab-{0}', uniqueString(variables('machines')[copyIndex()].dcrId))]",
+      "properties": {
+        "description": "Explicit Arc-only telemetry association; machine must retain its system-assigned identity.",
+        "dataCollectionRuleId": "[variables('machines')[copyIndex()].dcrId]"
+      },
+      "dependsOn": [
+        "ama"
+      ]
+    }
+  ],
+  "outputs": {
+    "arcMachineIds": {
+      "type": "array",
+      "copy": {
+        "count": "[length(variables('machines'))]",
+        "input": "[resourceId('Microsoft.HybridCompute/machines', variables('machines')[copyIndex()].name)]"
+      }
+    }
+  }
+}
